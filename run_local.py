@@ -6,6 +6,7 @@ import psutil
 app = Flask(__name__, static_folder='static', static_url_path='')
 CORS(app)
 
+terminated_processes = []
 # Serve the interactive dashboard
 @app.route('/')
 def index():
@@ -43,10 +44,26 @@ def terminate_process():
     data = request.get_json()
     pid = data.get('pid')
     try:
-        psutil.Process(pid).terminate()
+        process = psutil.Process(pid)
+        process_info = {
+            'pid': pid,
+            'name': process.name(),
+            'cpu_percent': process.cpu_percent(),
+            'memory_usage': round(process.memory_info().rss / 1024 / 1024, 2),
+            'num_threads': process.num_threads()
+        }
+        process.terminate()
+
+        terminated_processes.append(process_info)
         return jsonify({'message': f'Process {pid} terminated.'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+    
+
+@app.route('/get_terminated_processes')
+def get_terminated_processes():
+    return jsonify(terminated_processes)
+
 
 if __name__ == '__main__':
     print("🌐 Server running at http://localhost:8070/")
